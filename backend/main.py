@@ -21,7 +21,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # デプロイ時は一旦全て許可して接続を確認する
+    allow_origins=[
+        "http://localhost:3000",
+        "https://cutoutai.yu-fu.site",
+        "https://cutout-ai.pages.dev", # Cloudflare Pages デフォルトドメイン
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
