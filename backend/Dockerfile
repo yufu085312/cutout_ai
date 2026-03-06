@@ -17,7 +17,7 @@ ENV U2NET_HOME=/app/models
 
 # AIモデルをビルド時に事前ダウンロード
 RUN mkdir -p /app/models && \
-  python -c "import os; from rembg import remove; import numpy as np; remove(np.zeros((1,1,3), dtype=np.uint8))"
+  python -c "import os; from rembg import remove, new_session; import numpy as np; remove(np.zeros((1,1,3), dtype=np.uint8), session=new_session(model_name='u2netp'))"
 
 COPY . .
 

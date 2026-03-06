@@ -34,8 +34,8 @@ def load_model():
             print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Model file NOT found at {model_path}. Downloading may occur.")
 
         start_time = time.time()
-        # CPU実行を明示的に指定してフリーズを回避
-        session = new_session(providers=['CPUExecutionProvider'])
+        # 軽量モデル u2netp を使用して起動失敗を回避
+        session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
         elapsed = time.time() - start_time
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model loaded successfully in {elapsed:.2f}s")
     except Exception as e:
