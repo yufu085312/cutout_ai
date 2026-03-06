@@ -1,16 +1,15 @@
-"""Cutout AI Backend - FastAPI + rembg による画像背景削除API"""
-
+import os
+import time
 import io
+import resend
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from rembg import remove
-from PIL import Image
-import resend
-import os
+
+print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
 # --- App setup ---
 limiter = Limiter(key_func=get_remote_address)
@@ -57,6 +56,9 @@ async def remove_background(request: Request, image: UploadFile = File(...)):
     - 透過PNGをレスポンスとして返却
     - 画像はサーバーに保存しない
     """
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
+    from rembg import remove
+    from PIL import Image
 
     # ファイル拡張子チェック
     if image.filename:
