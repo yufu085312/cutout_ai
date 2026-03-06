@@ -24,12 +24,12 @@ primary_region = 'nrt'
   [[http_service.checks]]
     interval = '30s'
     timeout = '5s'
-    grace_period = '30s'
+    grace_period = '60s'
     method = 'get'
     path = '/api/health'
     protocol = 'http'
 
 [[vm]]
-  memory = '2gb'
+  memory = '4gb'
   cpus = 1
-  memory_mb = 2048
+  memory_mb = 4096

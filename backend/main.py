@@ -22,10 +22,20 @@ def load_model():
     global session, model_loading
     model_loading = True
     try:
+        home = os.environ.get("U2NET_HOME", os.path.expanduser("~"))
+        # rembg は $U2NET_HOME/.u2net/u2net.onnx を探す
+        model_path = os.path.join(home, ".u2net", "u2net.onnx")
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Loading AI model (u2net)...")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: U2NET_HOME={home}")
+        
+        if os.path.exists(model_path):
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Found model file at {model_path} ({os.path.getsize(model_path)} bytes)")
+        else:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Model file NOT found at {model_path}. Downloading may occur.")
+
         start_time = time.time()
-        # すでにインポート済みの new_session を使用
-        session = new_session()
+        # CPU実行を明示的に指定してフリーズを回避
+        session = new_session(providers=['CPUExecutionProvider'])
         elapsed = time.time() - start_time
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model loaded successfully in {elapsed:.2f}s")
     except Exception as e:
