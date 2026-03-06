@@ -9,8 +9,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
-from rembg import remove
-from PIL import Image
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
@@ -31,8 +29,11 @@ def load_model():
     finally:
         model_loading = False
 
-# サーバー起動とは別に、バックグラウンドでモデル読み込みを開始
-threading.Thread(target=load_model, daemon=True).start()
+@app.on_event("startup")
+def on_startup():
+    # サーバーがポート待機を開始した後に、バックグラウンドでモデル読み込みを開始
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Triggering model load in background")
+    threading.Thread(target=load_model, daemon=True).start()
 
 # --- App setup ---
 limiter = Limiter(key_func=get_remote_address)
@@ -129,6 +130,7 @@ def remove_background(request: Request, image: UploadFile = File(...)):
 
     # rembgで背景削除
     try:
+        from rembg import remove
         if session is None:
             # セッションの読み込みに失敗していた場合はここで再試行（フォールバック）
             output_bytes = remove(file_bytes)
