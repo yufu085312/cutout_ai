@@ -8,6 +8,8 @@ from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from rembg import remove
+from PIL import Image
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
@@ -49,25 +51,22 @@ async def health_check():
 
 @app.post("/api/remove-bg")
 @limiter.limit("5/minute")
-async def remove_background(request: Request, image: UploadFile = File(...)):
+def remove_background(request: Request, image: UploadFile = File(...)):
     """背景削除エンドポイント
-
-    - 画像を受け取り、rembgで背景を削除
-    - 透過PNGをレスポンスとして返却
-    - 画像はサーバーに保存しない
+    
+    注: CPU負荷が高いため、asyncなしの def で定義し、
+    FastAPIのスレッドプールで実行させることでイベントループのブロックを防ぎます。
     """
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
-    from rembg import remove
-    from PIL import Image
-
-    # ファイル拡張子チェック
-    if image.filename:
-        ext = image.filename.rsplit(".", 1)[-1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"対応していないファイル形式です。対応形式: {', '.join(ALLOWED_EXTENSIONS)}",
-            )
+    
+    # 拡張子チェック
+    filename = image.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"対応していないファイル形式です。対応形式: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
 
     # MIMEタイプチェック
     if image.content_type not in ALLOWED_MIME_TYPES:
@@ -77,7 +76,7 @@ async def remove_background(request: Request, image: UploadFile = File(...)):
         )
 
     # ファイル読み込み
-    file_bytes = await image.read()
+    file_bytes = image.file.read()
 
     # サイズチェック
     if len(file_bytes) > MAX_FILE_SIZE:
