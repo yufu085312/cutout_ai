@@ -14,32 +14,28 @@ from PIL import Image
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
-# グローバルセッション変数を初期化
+# グローバル状態
 session = None
+model_ready = False
 model_loading = False
 
 def load_model():
-    global session, model_loading
+    global session, model_ready, model_loading
     model_loading = True
     try:
-        home = os.environ.get("U2NET_HOME", os.path.expanduser("~"))
-        # rembg は $U2NET_HOME/.u2net/u2net.onnx を探す
-        model_path = os.path.join(home, ".u2net", "u2net.onnx")
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Loading AI model (u2net)...")
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: U2NET_HOME={home}")
+        import numpy as np
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI model (u2netp)...")
+        # ダミーデータで一度実行して初期化
+        dummy_img = np.zeros((10, 10, 3), dtype=np.uint8)
+        _ = remove(dummy_img, model_name="u2netp")
         
-        if os.path.exists(model_path):
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Found model file at {model_path} ({os.path.getsize(model_path)} bytes)")
-        else:
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Model file NOT found at {model_path}. Downloading may occur.")
-
-        start_time = time.time()
-        # 軽量モデル u2netp を使用して起動失敗を回避
+        # セッションも作成しておく（高速化のため）
         session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
-        elapsed = time.time() - start_time
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model loaded successfully in {elapsed:.2f}s")
+        
+        model_ready = True
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model (u2netp) is READY")
     except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: CRITICAL ERROR loading AI model: {str(e)}")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: ERROR loading model: {str(e)}")
         import traceback
         traceback.print_exc()
     finally:
@@ -96,11 +92,11 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     注: CPU負荷が高いため、asyncなしの def で定義し、
     FastAPIのスレッドプールで実行させることでイベントループのブロックを防ぎます。
     """
-    if session is None and model_loading:
+    if not model_ready:
         raise HTTPException(
             status_code=503,
             detail="AIモデルを準備中です（数十秒かかります）。しばらくしてから再度お試しください。",
-            headers={"Retry-After": "30"}
+            headers={"Retry-After": "10"}
         )
         
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
@@ -148,11 +144,11 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     # rembgで背景削除
     try:
         # 外部でインポート済み
-        if session is None:
-            # セッションの読み込みに失敗していた場合はここで再試行（フォールバック）
-            output_bytes = remove(file_bytes)
-        else:
+        if session:
             output_bytes = remove(file_bytes, session=session)
+        else:
+            # 万が一セッションがない場合はデフォルトで実行
+            output_bytes = remove(file_bytes, model_name="u2netp")
     except Exception as e:
         import traceback
         traceback.print_exc()

@@ -12,8 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# モデルの保存先を固定
+# モデルの保存先とNumbaのキャッシュ先を固定
 ENV U2NET_HOME=/app/models
+ENV NUMBA_CACHE_DIR=/tmp/numba_cache
 
 # AIモデルをビルド時に事前ダウンロード
 RUN mkdir -p /app/models && \
