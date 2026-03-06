@@ -9,6 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
+from PIL import Image
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
@@ -29,17 +30,18 @@ def load_model():
     finally:
         model_loading = False
 
-@app.on_event("startup")
-def on_startup():
-    # サーバーがポート待機を開始した後に、バックグラウンドでモデル読み込みを開始
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Triggering model load in background")
-    threading.Thread(target=load_model, daemon=True).start()
 
 # --- App setup ---
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Cutout AI API", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.on_event("startup")
+def on_startup():
+    # サーバーがポート待機を開始した後に、バックグラウンドでモデル読み込みを開始
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Triggering model load in background")
+    threading.Thread(target=load_model, daemon=True).start()
 
 # CORS設定
 app.add_middleware(
