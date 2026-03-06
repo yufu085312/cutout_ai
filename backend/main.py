@@ -9,10 +9,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
-from rembg import new_session, remove
-from PIL import Image
 
-print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
+print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...", flush=True)
 
 # グローバル状態
 session = None
@@ -23,19 +21,22 @@ def load_model():
     global session, model_ready, model_loading
     model_loading = True
     try:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Importing heavy libraries...", flush=True)
         import numpy as np
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI model (u2netp)...")
-        # ダミーデータで一度実行して初期化
-        dummy_img = np.zeros((10, 10, 3), dtype=np.uint8)
-        _ = remove(dummy_img, model_name="u2netp")
-        
-        # セッションも作成しておく（高速化のため）
+        from rembg import new_session, remove
+        from PIL import Image
+        # グローバル空間でも触れるようにインポートを保持（必要に応じて）
+        globals()['remove'] = remove
+        globals()['Image'] = Image
+
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI session (u2netp)...", flush=True)
+        # セッション作成のみ。ダミー実行はフリーズの元なので行わない。
         session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
         
         model_ready = True
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model (u2netp) is READY")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model (u2netp) is READY", flush=True)
     except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: ERROR loading model: {str(e)}")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: ERROR loading model: {str(e)}", flush=True)
         import traceback
         traceback.print_exc()
     finally:
@@ -93,13 +94,14 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     FastAPIのスレッドプールで実行させることでイベントループのブロックを防ぎます。
     """
     if not model_ready:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Rejected remove-bg request: Model not ready", flush=True)
         raise HTTPException(
             status_code=503,
             detail="AIモデルを準備中です（数十秒かかります）。しばらくしてから再度お試しください。",
             headers={"Retry-After": "10"}
         )
         
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request", flush=True)
     
     # 拡張子チェック
     filename = image.filename or ""
