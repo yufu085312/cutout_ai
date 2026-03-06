@@ -16,10 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV U2NET_HOME=/app/models
 ENV NUMBA_CACHE_DIR=/tmp/numba_cache
 ENV PYTHONUNBUFFERED=1
-# 並列実行スレッド数を制限してリソース競合を回避
-ENV OMP_NUM_THREADS=1
-ENV MKL_NUM_THREADS=1
-ENV ORT_TBB_NUM_THREADS=1
+ENV ORT_LOGGING_LEVEL=3
+ENV CUDA_VISIBLE_DEVICES=""
 
 # AIモデルをビルド時に事前ダウンロード
 RUN mkdir -p /app/models && \

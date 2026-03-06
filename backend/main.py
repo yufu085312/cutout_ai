@@ -9,9 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
-import numpy as np
-from rembg import new_session, remove
-from PIL import Image
+import gc
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...", flush=True)
 
@@ -19,15 +17,30 @@ print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...", flu
 session = None
 model_ready = False
 model_loading = False
+remove = None
+Image = None
 
 def load_model():
     """
     AIモデルのセッション作成をバックグラウンドで実行します。
-    重いライブラリは既にトップレベルでロード済みです。
+    サーバーの起動を優先するため、一定時間待機してから重いライブラリを読み込みます。
     """
-    global session, model_ready, model_loading
+    global session, model_ready, model_loading, remove, Image
+    
+    # サーバー起動直後のリソース競合を避けるために待機
+    time.sleep(10)
+    
     model_loading = True
     try:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Starting library import...", flush=True)
+        gc.collect() # メモリを整理
+        
+        import numpy as np
+        from rembg import new_session, remove as rem_func
+        from PIL import Image as PILImage
+        remove = rem_func
+        Image = PILImage
+        
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI session (u2netp)...", flush=True)
         # セッション作成
         session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
@@ -40,6 +53,7 @@ def load_model():
         traceback.print_exc()
     finally:
         model_loading = False
+        gc.collect()
 
 
 # --- App setup ---
