@@ -8,19 +8,29 @@ from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from rembg import remove, new_session
-from PIL import Image
+import threading
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
-#背景除去用のセッションをグローバルで保持（モデルの再読み込みを防ぐ）
-try:
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Loading AI model...")
-    session = new_session()
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] AI model loaded successfully")
-except Exception as e:
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Failed to load AI model: {e}")
-    session = None
+# グローバルセッション変数を初期化
+session = None
+model_loading = False
+
+def load_model():
+    global session, model_loading
+    model_loading = True
+    try:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Loading AI model...")
+        from rembg import new_session
+        session = new_session()
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model loaded successfully")
+    except Exception as e:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Failed to load AI model: {e}")
+    finally:
+        model_loading = False
+
+# サーバー起動とは別に、バックグラウンドでモデル読み込みを開始
+threading.Thread(target=load_model, daemon=True).start()
 
 # --- App setup ---
 limiter = Limiter(key_func=get_remote_address)
