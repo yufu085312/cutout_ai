@@ -9,6 +9,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
+from rembg import remove
+from PIL import Image
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
@@ -76,6 +78,13 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     注: CPU負荷が高いため、asyncなしの def で定義し、
     FastAPIのスレッドプールで実行させることでイベントループのブロックを防ぎます。
     """
+    if session is None and model_loading:
+        raise HTTPException(
+            status_code=503,
+            detail="AIモデルを準備中です（数十秒かかります）。しばらくしてから再度お試しください。",
+            headers={"Retry-After": "30"}
+        )
+        
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
     
     # 拡張子チェック
