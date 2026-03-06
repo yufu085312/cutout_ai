@@ -9,6 +9,14 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
+import numpy as np
+try:
+    from rembg import new_session, remove
+    from PIL import Image
+    IMPORT_SUCCESS = True
+except ImportError as e:
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] TOP-LEVEL: Failed to import heavy libraries: {e}", flush=True)
+    IMPORT_SUCCESS = False
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...", flush=True)
 
@@ -21,16 +29,12 @@ def load_model():
     global session, model_ready, model_loading
     model_loading = True
     try:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Importing heavy libraries...", flush=True)
-        import numpy as np
-        from rembg import new_session, remove
-        from PIL import Image
-        # グローバル空間でも触れるようにインポートを保持（必要に応じて）
-        globals()['remove'] = remove
-        globals()['Image'] = Image
+        if not IMPORT_SUCCESS:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Skipping model load due to import failure", flush=True)
+            return
 
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI session (u2netp)...", flush=True)
-        # セッション作成のみ。ダミー実行はフリーズの元なので行わない。
+        # セッション作成
         session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
         
         model_ready = True
