@@ -9,14 +9,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
-import numpy as np
-try:
-    from rembg import new_session, remove
-    from PIL import Image
-    IMPORT_SUCCESS = True
-except ImportError as e:
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] TOP-LEVEL: Failed to import heavy libraries: {e}", flush=True)
-    IMPORT_SUCCESS = False
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...", flush=True)
 
@@ -24,23 +16,32 @@ print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...", flu
 session = None
 model_ready = False
 model_loading = False
+remove = None
+Image = None
 
 def load_model():
-    global session, model_ready, model_loading
+    """
+    ライブラリのインポートとモデルの読み込みを順次行います。
+    起動の並列性を排除し、確実に初期化を完了させます。
+    """
+    global session, model_ready, model_loading, remove, Image
     model_loading = True
     try:
-        if not IMPORT_SUCCESS:
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Skipping model load due to import failure", flush=True)
-            return
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Loading libraries (numpy, rembg, PIL)...", flush=True)
+        import numpy as np
+        from rembg import new_session, remove as rem_func
+        from PIL import Image as PILImage
+        remove = rem_func
+        Image = PILImage
 
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI session (u2netp)...", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Initializing AI session (u2netp)...", flush=True)
         # セッション作成
         session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
         
         model_ready = True
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model (u2netp) is READY", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: AI model (u2netp) is READY", flush=True)
     except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: ERROR loading model: {str(e)}", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: ERROR loading model: {str(e)}", flush=True)
         import traceback
         traceback.print_exc()
     finally:
@@ -55,9 +56,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 def on_startup():
-    # サーバーがポート待機を開始した後に、バックグラウンドでモデル読み込みを開始
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Triggering model load in background")
-    threading.Thread(target=load_model, daemon=True).start()
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Starting initialization process...", flush=True)
+    # 並行性を排除し、順番にライブラリを読み込み
+    load_model()
 
 # CORS設定
 app.add_middleware(
