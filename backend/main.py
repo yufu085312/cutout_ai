@@ -9,6 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import threading
+from rembg import new_session, remove
 from PIL import Image
 
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
@@ -21,12 +22,16 @@ def load_model():
     global session, model_loading
     model_loading = True
     try:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Loading AI model...")
-        from rembg import new_session
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Loading AI model (u2net)...")
+        start_time = time.time()
+        # すでにインポート済みの new_session を使用
         session = new_session()
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model loaded successfully")
+        elapsed = time.time() - start_time
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model loaded successfully in {elapsed:.2f}s")
     except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Failed to load AI model: {e}")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: CRITICAL ERROR loading AI model: {str(e)}")
+        import traceback
+        traceback.print_exc()
     finally:
         model_loading = False
 
@@ -132,7 +137,7 @@ def remove_background(request: Request, image: UploadFile = File(...)):
 
     # rembgで背景削除
     try:
-        from rembg import remove
+        # 外部でインポート済み
         if session is None:
             # セッションの読み込みに失敗していた場合はここで再試行（フォールバック）
             output_bytes = remove(file_bytes)
