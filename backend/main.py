@@ -22,26 +22,26 @@ Image = None
 def load_model():
     """
     ライブラリのインポートとモデルの読み込みを順次行います。
-    起動の並列性を排除し、確実に初期化を完了させます。
+    起動の並列性を排除しつつ、バックグラウンドで実行してメインプロセスのフリーズを防ぎます。
     """
     global session, model_ready, model_loading, remove, Image
     model_loading = True
     try:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Loading libraries (numpy, rembg, PIL)...", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Loading libraries (numpy, rembg, PIL)...", flush=True)
         import numpy as np
         from rembg import new_session, remove as rem_func
         from PIL import Image as PILImage
         remove = rem_func
         Image = PILImage
 
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Initializing AI session (u2netp)...", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: Initializing AI session (u2netp)...", flush=True)
         # セッション作成
         session = new_session(model_name="u2netp", providers=['CPUExecutionProvider'])
         
         model_ready = True
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: AI model (u2netp) is READY", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: AI model (u2netp) is READY", flush=True)
     except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: ERROR loading model: {str(e)}", flush=True)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Background: ERROR loading model: {str(e)}", flush=True)
         import traceback
         traceback.print_exc()
     finally:
@@ -56,9 +56,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 def on_startup():
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Starting initialization process...", flush=True)
-    # 並行性を排除し、順番にライブラリを読み込み
-    load_model()
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Startup: Starting initialization in background...", flush=True)
+    # サーバーのレスポンスを妨げないよう、別スレッドで実行
+    # 以前成功した実績のある方式に戻します
+    threading.Thread(target=load_model, daemon=True).start()
 
 # CORS設定
 app.add_middleware(
