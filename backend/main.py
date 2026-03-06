@@ -8,7 +8,19 @@ from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from rembg import remove, new_session
+from PIL import Image
+
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
+
+#背景除去用のセッションをグローバルで保持（モデルの再読み込みを防ぐ）
+try:
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Loading AI model...")
+    session = new_session()
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] AI model loaded successfully")
+except Exception as e:
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Failed to load AI model: {e}")
+    session = None
 
 # --- App setup ---
 limiter = Limiter(key_func=get_remote_address)
@@ -55,8 +67,6 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     FastAPIのスレッドプールで実行させることでイベントループのブロックを防ぎます。
     """
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
-    from rembg import remove
-    from PIL import Image
     
     # 拡張子チェック
     filename = image.filename or ""
@@ -100,7 +110,11 @@ def remove_background(request: Request, image: UploadFile = File(...)):
 
     # rembgで背景削除
     try:
-        output_bytes = remove(file_bytes)
+        if session is None:
+            # セッションの読み込みに失敗していた場合はここで再試行（フォールバック）
+            output_bytes = remove(file_bytes)
+        else:
+            output_bytes = remove(file_bytes, session=session)
     except Exception as e:
         import traceback
         traceback.print_exc()

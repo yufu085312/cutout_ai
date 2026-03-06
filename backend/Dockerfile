@@ -12,8 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# AIモデルをビルド時に事前ダウンロード（初回リクエスト時のタイムアウト防止）
-RUN python -c "import os; from rembg import remove; import numpy as np; remove(np.zeros((1,1,3), dtype=np.uint8))"
+# モデルの保存先を固定
+ENV U2NET_HOME=/app/models
+
+# AIモデルをビルド時に事前ダウンロード
+RUN mkdir -p /app/models && \
+  python -c "import os; from rembg import remove; import numpy as np; remove(np.zeros((1,1,3), dtype=np.uint8))"
 
 COPY . .
 
