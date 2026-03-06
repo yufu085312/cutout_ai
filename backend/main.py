@@ -8,9 +8,6 @@ from fastapi.responses import Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from rembg import remove
-from PIL import Image
-
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Starting backend process...")
 
 # --- App setup ---
@@ -58,6 +55,8 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     FastAPIのスレッドプールで実行させることでイベントループのブロックを防ぎます。
     """
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Received remove-bg request")
+    from rembg import remove
+    from PIL import Image
     
     # 拡張子チェック
     filename = image.filename or ""
