@@ -182,12 +182,19 @@ def remove_background(request: Request, image: UploadFile = File(...)):
     )
 
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 
 class ContactForm(BaseModel):
     name: str
-    email: EmailStr
+    email: str
     message: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if "@" not in v:
+            raise ValueError("メールアドレスの形式が正しくありません。")
+        return v
 
 @app.post("/api/contact")
 async def contact(form: ContactForm):
